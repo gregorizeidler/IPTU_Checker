@@ -1,0 +1,14 @@
+opencv-python
+tensorflow
+ultralytics
+geopandas
+shapely
+sqlalchemy
+psycopg2
+googlemaps
+requests
+streamlit
+dash
+numpy
+pandas
+matplotlib

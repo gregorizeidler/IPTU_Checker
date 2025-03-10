@@ -1,0 +1,15 @@
+IPTU-Checker/
+│── 📂 src/
+│   ├── data_processing.py  # Fetching satellite images and georeferencing
+│   ├── image_analysis.py  # Image processing using OpenCV & YOLO
+│   ├── geospatial_analysis.py  # Geospatial data processing
+│   ├── database.py  # Database integration (PostgreSQL/PostGIS)
+│   ├── app.py  # Streamlit dashboard
+│── 📂 config/
+│   ├── api_keys.py  # Google Maps API Key
+│── 📂 data/  # Temporary storage for images and datasets
+│── 📂 models/  # Trained AI models
+│── 📂 tests/  # Unit tests
+│── README.md  # Project documentation
+│── requirements.txt  # Dependencies
+│── .gitignore  # Ignore unnecessary files

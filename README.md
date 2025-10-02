@@ -105,6 +105,12 @@ streamlit run src/app.py
 ```
 Access in your browser: **`http://localhost:8501`**
 
+### **5️⃣ REST API (Optional)**
+```bash
+python src/api.py
+```
+API Documentation: **`http://localhost:8000/docs`**
+
 ---
 
 ## 📊 Sample Output
@@ -119,10 +125,12 @@ Access in your browser: **`http://localhost:8501`**
 
 ---
 
+## ✅ Available Features
+✅ **REST API** - FastAPI with endpoints for municipal integration (`/docs`)  
+✅ **Interactive Maps** - Clickable maps with property status visualization  
+
 ## 🛠️ Future Improvements
-✅ Implement an **automated AI bot** to detect suspicious patterns.  
-✅ Develop a **REST API** for municipal system integration.  
-✅ Include **interactive maps** for detailed spatial analysis.  
+⚪ Implement an **automated AI bot** to detect suspicious patterns.  
 
 ---
 

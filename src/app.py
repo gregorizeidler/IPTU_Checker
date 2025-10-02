@@ -1,12 +1,161 @@
 import streamlit as st
 import pandas as pd
-from database import engine
+import plotly.express as px
+import plotly.graph_objects as go
+from database import get_all_records
+import os
 
-st.title("📊 IPTU Checker: Satellite-Based Land Analysis")
+st.set_page_config(page_title="IPTU Checker", page_icon="🛰️", layout="wide")
 
-query = "SELECT * FROM land_records"
-df = pd.read_sql(query, engine)
+st.title("🛰️ IPTU Checker: Satellite-Based Land Analysis")
+st.markdown("### Property Tax Verification System")
 
-st.write("📍 **Analyzed Land Data**")
-st.dataframe(df)
-st.bar_chart(df[['real_area', 'registered_area']])
+# Load data
+try:
+    df = get_all_records()
+    
+    if df.empty:
+        st.warning("⚠️ No data available. Run the analysis first:")
+        st.code("python src/main.py", language="bash")
+        st.stop()
+    
+    # Sidebar filters
+    st.sidebar.header("🔍 Filters")
+    status_filter = st.sidebar.multiselect(
+        "Status",
+        options=df['status'].unique(),
+        default=df['status'].unique()
+    )
+    
+    # Filter data
+    filtered_df = df[df['status'].isin(status_filter)]
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Properties", len(filtered_df))
+    
+    with col2:
+        compliant = len(filtered_df[filtered_df['status'] == 'compliant'])
+        st.metric("✅ Compliant", compliant)
+    
+    with col3:
+        underdeclared = len(filtered_df[filtered_df['status'] == 'underdeclared'])
+        st.metric("⚠️ Underdeclared", underdeclared, delta=f"{underdeclared} cases")
+    
+    with col4:
+        overdeclared = len(filtered_df[filtered_df['status'] == 'overdeclared'])
+        st.metric("💰 Overdeclared", overdeclared)
+    
+    # Charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Status Distribution")
+        status_counts = filtered_df['status'].value_counts()
+        fig_pie = px.pie(
+            values=status_counts.values,
+            names=status_counts.index,
+            color=status_counts.index,
+            color_discrete_map={
+                'compliant': '#00CC96',
+                'underdeclared': '#EF553B',
+                'overdeclared': '#FFA15A'
+            }
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+    
+    with col2:
+        st.subheader("📈 Difference Distribution")
+        fig_hist = px.histogram(
+            filtered_df,
+            x='percent_difference',
+            nbins=20,
+            labels={'percent_difference': 'Difference (%)'},
+            color='status',
+            color_discrete_map={
+                'compliant': '#00CC96',
+                'underdeclared': '#EF553B',
+                'overdeclared': '#FFA15A'
+            }
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+    
+    # Area comparison
+    st.subheader("📏 Registered vs Measured Area")
+    fig_scatter = px.scatter(
+        filtered_df,
+        x='registered_area',
+        y='real_area',
+        color='status',
+        hover_data=['address', 'percent_difference'],
+        labels={
+            'registered_area': 'Registered Area (m²)',
+            'real_area': 'Measured Area (m²)'
+        },
+        color_discrete_map={
+            'compliant': '#00CC96',
+            'underdeclared': '#EF553B',
+            'overdeclared': '#FFA15A'
+        }
+    )
+    # Add diagonal line (perfect match)
+    max_val = max(filtered_df['registered_area'].max(), filtered_df['real_area'].max())
+    fig_scatter.add_trace(go.Scatter(
+        x=[0, max_val],
+        y=[0, max_val],
+        mode='lines',
+        line=dict(dash='dash', color='gray'),
+        name='Perfect Match',
+        showlegend=True
+    ))
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    
+    # Map
+    if 'latitude' in filtered_df.columns and 'longitude' in filtered_df.columns:
+        st.subheader("🗺️ Property Locations")
+        map_df = filtered_df[['latitude', 'longitude', 'address', 'status', 'percent_difference']].dropna()
+        if not map_df.empty:
+            st.map(map_df[['latitude', 'longitude']])
+    
+    # Data table
+    st.subheader("📋 Detailed Results")
+    
+    # Color code the status
+    def color_status(val):
+        if val == 'compliant':
+            return 'background-color: #d4edda'
+        elif val == 'underdeclared':
+            return 'background-color: #f8d7da'
+        elif val == 'overdeclared':
+            return 'background-color: #fff3cd'
+        return ''
+    
+    display_df = filtered_df[[
+        'address', 'registered_area', 'real_area',
+        'difference', 'percent_difference', 'status'
+    ]].copy()
+    
+    display_df.columns = ['Address', 'Registered (m²)', 'Measured (m²)',
+                          'Difference (m²)', 'Difference (%)', 'Status']
+    
+    styled_df = display_df.style.applymap(color_status, subset=['Status'])
+    st.dataframe(styled_df, use_container_width=True)
+    
+    # Statistics
+    st.subheader("📊 Statistics")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Average Difference", f"{filtered_df['percent_difference'].mean():.2f}%")
+    
+    with col2:
+        st.metric("Median Difference", f"{filtered_df['percent_difference'].median():.2f}%")
+    
+    with col3:
+        st.metric("Max Difference", f"{filtered_df['percent_difference'].max():.2f}%")
+    
+except Exception as e:
+    st.error(f"❌ Error loading data: {e}")
+    st.info("Make sure the database exists. Run: `python src/main.py`")

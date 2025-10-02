@@ -112,12 +112,78 @@ try:
     ))
     st.plotly_chart(fig_scatter, use_container_width=True)
     
-    # Map
+    # Interactive Map with Plotly
     if 'latitude' in filtered_df.columns and 'longitude' in filtered_df.columns:
-        st.subheader("🗺️ Property Locations")
-        map_df = filtered_df[['latitude', 'longitude', 'address', 'status', 'percent_difference']].dropna()
+        st.subheader("🗺️ Interactive Property Map")
+        map_df = filtered_df[['latitude', 'longitude', 'address', 'status', 
+                              'registered_area', 'real_area', 'percent_difference']].dropna()
+        
         if not map_df.empty:
-            st.map(map_df[['latitude', 'longitude']])
+            # Color mapping
+            color_map = {
+                'compliant': '#00CC96',      # Green
+                'underdeclared': '#EF553B',  # Red
+                'overdeclared': '#FFA15A'    # Orange
+            }
+            
+            map_df['color'] = map_df['status'].map(color_map)
+            
+            # Size based on difference percentage
+            map_df['size'] = map_df['percent_difference'].abs() * 2 + 10
+            
+            # Create interactive map
+            fig_map = go.Figure()
+            
+            for status in map_df['status'].unique():
+                status_data = map_df[map_df['status'] == status]
+                
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=status_data['latitude'],
+                    lon=status_data['longitude'],
+                    mode='markers',
+                    marker=dict(
+                        size=status_data['size'],
+                        color=status_data['color'],
+                        opacity=0.7
+                    ),
+                    text=status_data['address'],
+                    name=status.capitalize(),
+                    hovertemplate='<b>%{text}</b><br>' +
+                                  'Status: ' + status + '<br>' +
+                                  'Registered: %{customdata[0]:.1f} m²<br>' +
+                                  'Measured: %{customdata[1]:.1f} m²<br>' +
+                                  'Difference: %{customdata[2]:.1f}%' +
+                                  '<extra></extra>',
+                    customdata=status_data[['registered_area', 'real_area', 'percent_difference']].values
+                ))
+            
+            # Calculate center of map
+            center_lat = map_df['latitude'].mean()
+            center_lon = map_df['longitude'].mean()
+            
+            fig_map.update_layout(
+                mapbox=dict(
+                    style='open-street-map',
+                    center=dict(lat=center_lat, lon=center_lon),
+                    zoom=11
+                ),
+                showlegend=True,
+                height=600,
+                margin={"r":0,"t":0,"l":0,"b":0}
+            )
+            
+            st.plotly_chart(fig_map, use_container_width=True)
+            
+            # Map legend
+            st.markdown("""
+            **Map Legend:**
+            - 🟢 Green = Compliant (within tolerance)
+            - 🔴 Red = Underdeclared (potential tax evasion)
+            - 🟠 Orange = Overdeclared (overpaying taxes)
+            - Marker size = Magnitude of difference
+            """)
+        else:
+            st.info("No properties with coordinates to display on map")
     
     # Data table
     st.subheader("📋 Detailed Results")
